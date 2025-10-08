@@ -6,6 +6,8 @@ import os
 from dotenv import load_dotenv
 import uuid
 from io import BytesIO
+import subprocess
+import sys
 
 from app.models import UploadResponse, ChatMessage, ChatResponse
 from app.pdf_processor import pdf_processor
@@ -13,6 +15,30 @@ from app.ai_agent import DataAnalysisAgent
 from app.storage import storage
 
 load_dotenv()
+
+def check_system_dependencies():
+    dependencies = {
+        'tesseract': 'tesseract-ocr',
+        'pdftotext': 'poppler-utils'
+    }
+    
+    missing = []
+    for cmd, package in dependencies.items():
+        try:
+            result = subprocess.run(['which', cmd], 
+                          capture_output=True, 
+                          check=True)
+            if not result.stdout.strip():
+                missing.append(package)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            missing.append(package)
+    
+    if missing:
+        print(f"ERROR: Missing system dependencies: {', '.join(missing)}")
+        print("Please install them using: sudo apt-get install -y " + " ".join(missing))
+        sys.exit(1)
+
+check_system_dependencies()
 
 app = FastAPI()
 
