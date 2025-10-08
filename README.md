@@ -196,22 +196,38 @@ Download a generated file (CSV, Excel, or chart).
 
 ## Deployment
 
-### Backend Deployment (Fly.io)
+### Backend Deployment (Render)
 
-The backend can be deployed to Fly.io using:
-```bash
-cd backend
-# Deploy command provided in deployment instructions
-```
+The backend is configured to deploy to Render using Docker with all required system dependencies (tesseract-ocr, poppler-utils).
+
+**📖 See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete deployment instructions.**
+
+Key points:
+- Deploy via **Render Blueprint** (Infrastructure as Code)
+- Uses **Docker** to install system dependencies
+- Requires **OpenAI or Anthropic API key**
+- Free tier available with 750 hours/month
+
+**Quick Start:**
+1. Go to [Render Dashboard](https://dashboard.render.com/)
+2. Click "New +" → "Blueprint"
+3. Connect the Anthonyooo0/PDF-CSV repository
+4. Set your API keys as environment variables
+5. Click "Apply" to deploy
+
+The `render.yaml` and `backend/Dockerfile` are already configured.
 
 ### Frontend Deployment
 
-The frontend can be deployed using:
+The frontend can be deployed to any static hosting service:
+
 ```bash
 cd frontend
 npm run build
-# Deploy the dist/ folder
+# Deploy the dist/ folder to Vercel, Netlify, Cloudflare Pages, etc.
 ```
+
+Make sure to set the `VITE_API_URL` environment variable to your deployed Render backend URL.
 
 ## Architecture
 
