@@ -4,27 +4,52 @@ from pdf2image import convert_from_bytes
 from PIL import Image
 import pandas as pd
 import io
-from typing import List, Tuple
+import subprocess
+from typing import List, Tuple, Optional
 
 class PDFProcessor:
     def __init__(self):
         pass
     
+    def _check_ocr_dependencies(self) -> Optional[str]:
+        try:
+            subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return "tesseract-ocr is not installed or not in PATH"
+        
+        try:
+            subprocess.run(['pdftotext', '-v'], capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return "poppler-utils is not installed or not in PATH"
+        
+        return None
+    
     def extract_tables_from_pdf(self, pdf_content: bytes, filename: str) -> Tuple[pd.DataFrame, str]:
+        pdfplumber_error = None
         try:
             df = self._extract_with_pdfplumber(pdf_content)
             if df is not None and not df.empty:
                 return df, "digital"
         except Exception as e:
+            pdfplumber_error = str(e)
             print(f"pdfplumber extraction failed: {e}")
         
         try:
+            dep_error = self._check_ocr_dependencies()
+            if dep_error:
+                raise Exception(f"OCR dependencies missing: {dep_error}")
+            
             df = self._extract_with_ocr(pdf_content)
             if df is not None and not df.empty:
                 return df, "ocr"
         except Exception as e:
+            ocr_error = str(e)
             print(f"OCR extraction failed: {e}")
-            raise Exception("Failed to extract tables from PDF using both pdfplumber and OCR")
+            error_msg = f"Failed to extract tables from PDF using both pdfplumber and OCR."
+            if pdfplumber_error:
+                error_msg += f" PDFPlumber error: {pdfplumber_error}."
+            error_msg += f" OCR error: {ocr_error}"
+            raise Exception(error_msg)
         
         raise Exception("No tables found in PDF")
     
@@ -41,11 +66,11 @@ class PDFProcessor:
         if not all_rows:
             return None
         
-        headers = all_rows[0] if all_rows else []
-        data_rows = all_rows[1:] if len(all_rows) > 1 else []
+        if len(all_rows) < 2:
+            return None
         
-        if not headers or not data_rows:
-            return pd.DataFrame(all_rows)
+        headers = all_rows[0]
+        data_rows = all_rows[1:]
         
         df = pd.DataFrame(data_rows, columns=headers)
         return df
@@ -74,17 +99,17 @@ class PDFProcessor:
         if not rows:
             return None
         
+        if len(rows) < 2:
+            return None
+        
         max_cols = max(len(row) for row in rows)
         
         for row in rows:
             while len(row) < max_cols:
                 row.append("")
         
-        headers = rows[0] if rows else []
-        data_rows = rows[1:] if len(rows) > 1 else []
-        
-        if not data_rows:
-            return pd.DataFrame(rows)
+        headers = rows[0]
+        data_rows = rows[1:]
         
         df = pd.DataFrame(data_rows, columns=headers)
         return df
